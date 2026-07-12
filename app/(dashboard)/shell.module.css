@@ -1,0 +1,31 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  position: relative;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  margin-top: 70px;
+}
+
+.main {
+  flex: 1;
+  margin-left: var(--sidebar-w);
+  padding: var(--main-padding, 2rem);
+  transition: margin-left 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  min-width: 0;
+}
+
+.mini .main {
+  margin-left: var(--sidebar-mini);
+}
+
+@media (max-width: 1024px) {
+  .main,
+  .mini .main {
+    margin-left: 0;
+  }
+}

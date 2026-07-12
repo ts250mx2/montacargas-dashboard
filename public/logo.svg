@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 560">
+  <!-- Logo Montacargas y Servicios MR (versión vectorial) -->
+  <g stroke="#17181c" stroke-width="14" stroke-linejoin="round" stroke-linecap="round">
+    <!-- Mástil -->
+    <rect x="360" y="80" width="26" height="240" fill="#17181c" stroke="none"/>
+    <rect x="396" y="100" width="18" height="220" fill="#17181c" stroke="none"/>
+    <!-- Horquilla -->
+    <path d="M 372 320 L 372 348 L 520 348" fill="none" stroke-width="18"/>
+    <!-- Cuerpo -->
+    <path d="M 80 220 L 90 180 Q 95 160 120 160 L 150 160 L 160 120 Q 165 95 195 92 L 265 88 Q 292 87 296 112 L 302 160 L 330 168 Q 356 176 358 205 L 362 268 Q 363 292 338 296 L 110 300 Q 82 300 80 272 Z" fill="#e8ef1f"/>
+    <!-- Cabina (hueco) -->
+    <path d="M 175 160 L 185 118 Q 188 106 202 105 L 258 102 Q 270 102 272 114 L 278 162 L 246 190 L 196 190 Z" fill="#ffffff"/>
+    <!-- Escape -->
+    <rect x="112" y="118" width="22" height="46" rx="8" fill="#17181c" stroke="none"/>
+    <ellipse cx="130" cy="172" rx="34" ry="16" fill="#17181c" stroke="none"/>
+    <!-- Rejilla -->
+    <path d="M 96 226 L 150 222 M 96 246 L 150 243 M 96 266 L 150 264" stroke-width="8" fill="none"/>
+    <!-- Ruedas -->
+    <circle cx="140" cy="304" r="42" fill="#17181c"/>
+    <circle cx="140" cy="304" r="16" fill="#ffffff" stroke="none"/>
+    <circle cx="308" cy="304" r="42" fill="#17181c"/>
+    <circle cx="308" cy="304" r="16" fill="#ffffff" stroke="none"/>
+    <!-- Piso -->
+    <path d="M 60 348 L 340 348" stroke-width="12"/>
+  </g>
+  <!-- Placa MR -->
+  <g>
+    <rect x="392" y="196" width="120" height="96" rx="26" fill="#ffffff" stroke="#17181c" stroke-width="12"/>
+    <text x="452" y="266" font-family="Arial Black, Arial, sans-serif" font-size="58" font-weight="900" text-anchor="middle" fill="#17181c">MR</text>
+  </g>
+  <!-- Texto -->
+  <text x="280" y="440" font-family="Arial Black, Arial, sans-serif" font-size="46" font-weight="900" text-anchor="middle" fill="#17181c">MONTACARGAS Y SERVICIOS</text>
+  <text x="280" y="490" font-family="Arial, sans-serif" font-size="30" font-weight="700" text-anchor="middle" fill="#17181c" letter-spacing="1">REFACCIONES PARA MONTACARGAS</text>
+</svg>
