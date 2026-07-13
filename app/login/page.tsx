@@ -42,7 +42,7 @@ export default function LoginPage() {
       <div className={`${styles.card} glass animate-scale`}>
         <div className="hazard" style={{ marginBottom: '1.5rem' }} />
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.svg" alt="Montacargas y Servicios MR" className={styles.logo} />
+        <img src="/logo.jpg" alt="Montacargas y Servicios MR" className={styles.logo} />
 
         <h1 className={styles.title}>Sistema Administrativo</h1>
         <p className={styles.subtitle}>Facturación y Cobranza</p>

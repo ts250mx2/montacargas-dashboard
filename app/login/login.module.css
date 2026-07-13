@@ -19,10 +19,13 @@
 }
 
 .logo {
-  width: 190px;
+  width: 210px;
   height: auto;
   margin: 0 auto 0.75rem;
   display: block;
+  background: #fff;
+  border-radius: var(--r-lg);
+  box-shadow: 0 4px 16px rgba(23, 24, 28, 0.08);
 }
 
 .title {

@@ -27,7 +27,7 @@ export default function Header() {
       <div className={styles.inner}>
         <div className={styles.left}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-mark.svg" alt="MR" className={styles.logo} />
+          <img src="/logo.jpg" alt="Montacargas y Servicios MR" className={styles.logo} />
           <div className={styles.brand}>
             <span className={styles.brandName}>Montacargas y Servicios</span>
             <span className={styles.brandSub}>Refacciones para montacargas</span>
