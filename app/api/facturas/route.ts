@@ -55,6 +55,10 @@ export async function POST(request: Request) {
     if (!b.id_cliente) {
       return NextResponse.json({ message: 'El cliente es obligatorio' }, { status: 400 });
     }
+    const folioInterno = String(b.folio_interno ?? '').trim().toUpperCase();
+    if (!folioInterno) {
+      return NextResponse.json({ message: 'El folio interno es obligatorio' }, { status: 400 });
+    }
 
     const [cfgRows] = await pool.query('SELECT iva_porcentaje, serie_folio FROM configuracion WHERE id = 1');
     const cfg = (cfgRows as any[])[0] || { iva_porcentaje: 16, serie_folio: 'F' };
@@ -81,10 +85,10 @@ export async function POST(request: Request) {
     const folio = b.folio?.trim() || `${cfg.serie_folio}-${String(consecutivo).padStart(4, '0')}`;
 
     const [result] = await pool.query(
-      `INSERT INTO facturas (folio, fecha, id_cliente, id_vendedor, id_forma_pago, fecha_vencimiento, estado, iva_porcentaje, notas)
-       VALUES (?, ?, ?, ?, ?, ?, 'Vigente', ?, ?)`,
+      `INSERT INTO facturas (folio, folio_interno, fecha, id_cliente, id_vendedor, id_forma_pago, fecha_vencimiento, estado, iva_porcentaje, notas)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'Vigente', ?, ?)`,
       [
-        folio, fecha, b.id_cliente, b.id_vendedor || null, b.id_forma_pago || null,
+        folio, folioInterno, fecha, b.id_cliente, b.id_vendedor || null, b.id_forma_pago || null,
         vencimiento, cfg.iva_porcentaje, b.notas ?? '',
       ]
     );

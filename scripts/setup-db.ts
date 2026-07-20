@@ -137,6 +137,7 @@ async function main() {
     `CREATE TABLE IF NOT EXISTS facturas (
       id INT AUTO_INCREMENT PRIMARY KEY,
       folio VARCHAR(20) NOT NULL,
+      folio_interno VARCHAR(50) NOT NULL DEFAULT '',
       fecha DATE NOT NULL,
       id_cliente INT NOT NULL,
       id_vendedor INT NULL,
@@ -150,7 +151,8 @@ async function main() {
       notas VARCHAR(300) NOT NULL DEFAULT '',
       UNIQUE KEY uq_folio (folio),
       KEY idx_cliente (id_cliente),
-      KEY idx_fecha (fecha)
+      KEY idx_fecha (fecha),
+      KEY idx_folio_interno (folio_interno)
     ) ENGINE=InnoDB`,
 
     `CREATE TABLE IF NOT EXISTS factura_detalle (
@@ -183,6 +185,33 @@ async function main() {
     await conn.query(sql);
   }
   console.log('Tablas creadas/verificadas.');
+
+  // ── Migraciones idempotentes para bases ya existentes ──
+  const columnExists = async (tabla: string, columna: string) => {
+    const [rows] = await conn.query(
+      `SELECT COUNT(*) AS n FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+      [tabla, columna]
+    );
+    return (rows as any[])[0].n > 0;
+  };
+  const indexExists = async (tabla: string, indice: string) => {
+    const [rows] = await conn.query(
+      `SELECT COUNT(*) AS n FROM INFORMATION_SCHEMA.STATISTICS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?`,
+      [tabla, indice]
+    );
+    return (rows as any[])[0].n > 0;
+  };
+
+  if (!(await columnExists('facturas', 'folio_interno'))) {
+    await conn.query(`ALTER TABLE facturas ADD COLUMN folio_interno VARCHAR(50) NOT NULL DEFAULT '' AFTER folio`);
+    console.log('Migración: columna facturas.folio_interno agregada.');
+  }
+  if (!(await indexExists('facturas', 'idx_folio_interno'))) {
+    await conn.query(`ALTER TABLE facturas ADD INDEX idx_folio_interno (folio_interno)`);
+    console.log('Migración: índice facturas.idx_folio_interno agregado.');
+  }
 
   // ── Datos semilla (solo si las tablas están vacías) ──
   const seed = async (tabla: string, insert: string) => {

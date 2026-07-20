@@ -7,7 +7,7 @@ export async function GET() {
   try {
     const [pagos] = await pool.query(`
       SELECT pg.*,
-             f.folio, f.total AS factura_total,
+             f.folio, f.folio_interno, f.total AS factura_total,
              c.razon_social AS cliente,
              fp.nombre AS forma_pago,
              bk.nombre AS banco
@@ -21,7 +21,7 @@ export async function GET() {
 
     // Facturas vigentes con saldo pendiente (para registrar pagos)
     const [pendRows] = await pool.query(`
-      SELECT f.id, f.folio, f.total, f.fecha_vencimiento, f.estado,
+      SELECT f.id, f.folio, f.folio_interno, f.total, f.fecha_vencimiento, f.estado,
              c.razon_social AS cliente,
              COALESCE(p.cobrado, 0) AS cobrado
       FROM facturas f

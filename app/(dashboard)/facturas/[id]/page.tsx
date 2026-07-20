@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  FileText, ArrowLeft, Plus, Trash2, X, Check, Ban, DollarSign, AlertTriangle,
+  FileText, ArrowLeft, Plus, Trash2, X, Check, Ban, DollarSign, AlertTriangle, Pencil, Edit2,
 } from 'lucide-react';
 import { money, fecha, badgeEstadoCobro } from '@/lib/format';
 
@@ -16,6 +16,9 @@ export default function FacturaDetallePage({ params }: { params: Promise<{ id: s
   const [detalle, setDetalle] = useState<any[]>([]);
   const [pagos, setPagos] = useState<any[]>([]);
   const [productos, setProductos] = useState<any[]>([]);
+  const [clientes, setClientes] = useState<any[]>([]);
+  const [vendedores, setVendedores] = useState<any[]>([]);
+  const [formasPago, setFormasPago] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -25,9 +28,28 @@ export default function FacturaDetallePage({ params }: { params: Promise<{ id: s
   const [linea, setLinea] = useState({ id_producto: 0, cantidad: 1, precio: '', descuento: 0 });
   const [savingLinea, setSavingLinea] = useState(false);
 
+  // Editar partida existente
+  const [editLineaOpen, setEditLineaOpen] = useState(false);
+  const [editingLinea, setEditingLinea] = useState<any>(null);
+  const [editLineaForm, setEditLineaForm] = useState({ cantidad: 1, precio: '', descuento: 0 });
+  const [savingEditLinea, setSavingEditLinea] = useState(false);
+
+  // Editar encabezado de la factura
+  const [headerOpen, setHeaderOpen] = useState(false);
+  const [headerForm, setHeaderForm] = useState({
+    id_cliente: 0, id_vendedor: 0, id_forma_pago: 0, folio_interno: '',
+    fecha: '', fecha_vencimiento: '', notas: '',
+  });
+  const [savingHeader, setSavingHeader] = useState(false);
+
   // Cancelar factura
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [canceling, setCanceling] = useState(false);
+
+  // Editar folio interno
+  const [folioInternoOpen, setFolioInternoOpen] = useState(false);
+  const [folioInternoValue, setFolioInternoValue] = useState('');
+  const [savingFolioInterno, setSavingFolioInterno] = useState(false);
 
   const fetchData = useCallback(async () => {
     const res = await fetch(`/api/facturas/${id}`);
@@ -37,6 +59,9 @@ export default function FacturaDetallePage({ params }: { params: Promise<{ id: s
     setDetalle(data.detalle || []);
     setPagos(data.pagos || []);
     setProductos(data.productos || []);
+    setClientes(data.clientes || []);
+    setVendedores(data.vendedores || []);
+    setFormasPago(data.formasPago || []);
     setLoading(false);
   }, [id]);
 
@@ -76,6 +101,78 @@ export default function FacturaDetallePage({ params }: { params: Promise<{ id: s
     const res = await fetch(`/api/facturas/${id}/detalle/${lineaId}`, { method: 'DELETE' });
     if (res.ok) fetchData();
     else { const err = await res.json(); alert(err.message || 'Error al quitar la partida'); }
+  };
+
+  const abrirEdicionLinea = (d: any) => {
+    setEditingLinea(d);
+    setEditLineaForm({ cantidad: Number(d.cantidad), precio: String(d.precio), descuento: Number(d.descuento) });
+    setEditLineaOpen(true);
+  };
+
+  const guardarEdicionLinea = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingEditLinea(true);
+    try {
+      const res = await fetch(`/api/facturas/${id}/detalle/${editingLinea.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editLineaForm),
+      });
+      if (res.ok) { setEditLineaOpen(false); fetchData(); }
+      else { const err = await res.json(); alert(err.message || 'Error al guardar los cambios'); }
+    } catch { alert('Error de conexión'); }
+    finally { setSavingEditLinea(false); }
+  };
+
+  const abrirEdicionEncabezado = () => {
+    setHeaderForm({
+      id_cliente: factura.id_cliente,
+      id_vendedor: factura.id_vendedor || 0,
+      id_forma_pago: factura.id_forma_pago || 0,
+      folio_interno: factura.folio_interno || '',
+      fecha: factura.fecha,
+      fecha_vencimiento: factura.fecha_vencimiento,
+      notas: factura.notas || '',
+    });
+    setHeaderOpen(true);
+  };
+
+  const guardarEncabezado = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!headerForm.id_cliente) { alert('Selecciona un cliente'); return; }
+    if (!headerForm.folio_interno.trim()) { alert('El folio interno es obligatorio'); return; }
+    setSavingHeader(true);
+    try {
+      const res = await fetch(`/api/facturas/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(headerForm),
+      });
+      if (res.ok) { setHeaderOpen(false); fetchData(); }
+      else { const err = await res.json(); alert(err.message || 'Error al guardar'); }
+    } catch { alert('Error de conexión'); }
+    finally { setSavingHeader(false); }
+  };
+
+  const abrirEdicionFolioInterno = () => {
+    setFolioInternoValue(factura.folio_interno || '');
+    setFolioInternoOpen(true);
+  };
+
+  const guardarFolioInterno = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!folioInternoValue.trim()) { alert('El folio interno es obligatorio'); return; }
+    setSavingFolioInterno(true);
+    try {
+      const res = await fetch(`/api/facturas/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accion: 'folio_interno', folio_interno: folioInternoValue }),
+      });
+      if (res.ok) { setFolioInternoOpen(false); fetchData(); }
+      else { const err = await res.json(); alert(err.message || 'Error al guardar'); }
+    } catch { alert('Error de conexión'); }
+    finally { setSavingFolioInterno(false); }
   };
 
   const cancelarFactura = async () => {
@@ -118,8 +215,15 @@ export default function FacturaDetallePage({ params }: { params: Promise<{ id: s
           <div className="titleIcon"><FileText size={24} /></div>
           <div>
             <h1>Factura {factura.folio}</h1>
-            <p className="pageSubtitle">
-              {factura.cliente} · {fecha(factura.fecha)} · Vence {fecha(factura.fecha_vencimiento)}
+            <p className="pageSubtitle" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <span>Folio Interno: <strong style={{ color: 'var(--text)' }}>{factura.folio_interno}</strong></span>
+              {!cancelada && (
+                <button className="iconBtn" style={{ width: 22, height: 22 }} title="Editar folio interno"
+                  onClick={abrirEdicionFolioInterno}>
+                  <Pencil size={12} />
+                </button>
+              )}
+              <span>· {factura.cliente} · {fecha(factura.fecha)} · Vence {fecha(factura.fecha_vencimiento)}</span>
             </p>
           </div>
         </div>
@@ -129,6 +233,9 @@ export default function FacturaDetallePage({ params }: { params: Promise<{ id: s
           </span>
           {!cancelada && (
             <>
+              <button className="btnGhost" onClick={abrirEdicionEncabezado}>
+                <Edit2 size={16} /> Editar Factura
+              </button>
               <Link href="/cobranza" className="btnGhost"><DollarSign size={16} /> Registrar Pago</Link>
               <button className="btnDanger" onClick={() => setConfirmCancel(true)}>
                 <Ban size={16} /> Cancelar Factura
@@ -218,9 +325,14 @@ export default function FacturaDetallePage({ params }: { params: Promise<{ id: s
                     </td>
                     {!cancelada && (
                       <td>
-                        <button className="iconBtn iconBtnDanger" onClick={() => quitarLinea(d.id)} title="Quitar">
-                          <Trash2 size={15} />
-                        </button>
+                        <div className="rowActions">
+                          <button className="iconBtn" onClick={() => abrirEdicionLinea(d)} title="Editar">
+                            <Edit2 size={15} />
+                          </button>
+                          <button className="iconBtn iconBtnDanger" onClick={() => quitarLinea(d.id)} title="Quitar">
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -337,6 +449,152 @@ export default function FacturaDetallePage({ params }: { params: Promise<{ id: s
               <button type="submit" className="btnPrimary" style={{ justifyContent: 'center' }} disabled={savingLinea}>
                 <Check size={18} />
                 {savingLinea ? 'Agregando...' : 'Agregar a la Factura'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal editar partida existente */}
+      {editLineaOpen && editingLinea && (
+        <div className="overlay">
+          <div className="glass modal animate-scale">
+            <div className="modalHead">
+              <h3>Editar Producto</h3>
+              <button onClick={() => setEditLineaOpen(false)}><X size={20} /></button>
+            </div>
+
+            <form onSubmit={guardarEdicionLinea} className="form">
+              <div className="field">
+                <label className="fieldLabel">Producto</label>
+                <input type="text" value={`${editingLinea.sku} — ${editingLinea.descripcion}`} disabled
+                  style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }} />
+              </div>
+
+              <div className="formGrid3">
+                <div className="field">
+                  <label className="fieldLabel">Cantidad *</label>
+                  <input type="number" step="0.01" min="0.01" value={editLineaForm.cantidad}
+                    onChange={e => setEditLineaForm({ ...editLineaForm, cantidad: parseFloat(e.target.value) || 0 })} required />
+                </div>
+                <div className="field">
+                  <label className="fieldLabel">Precio ($)</label>
+                  <input type="number" step="0.01" min="0" value={editLineaForm.precio}
+                    onChange={e => setEditLineaForm({ ...editLineaForm, precio: e.target.value })} />
+                </div>
+                <div className="field">
+                  <label className="fieldLabel">Descuento (%)</label>
+                  <input type="number" step="0.01" min="0" max="100" value={editLineaForm.descuento}
+                    onChange={e => setEditLineaForm({ ...editLineaForm, descuento: parseFloat(e.target.value) || 0 })} />
+                </div>
+              </div>
+
+              <div className="glass card" style={{ padding: '0.75rem 1rem', textAlign: 'right', fontWeight: 700 }}>
+                Importe: {money(editLineaForm.cantidad * (parseFloat(editLineaForm.precio) || 0) * (1 - editLineaForm.descuento / 100))}
+              </div>
+
+              <button type="submit" className="btnPrimary" style={{ justifyContent: 'center' }} disabled={savingEditLinea}>
+                <Check size={18} />
+                {savingEditLinea ? 'Guardando...' : 'Guardar Cambios'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal editar encabezado de la factura */}
+      {headerOpen && (
+        <div className="overlay">
+          <div className="glass modal modalWide animate-scale">
+            <div className="modalHead">
+              <h3>Editar Factura</h3>
+              <button onClick={() => setHeaderOpen(false)}><X size={20} /></button>
+            </div>
+
+            <form onSubmit={guardarEncabezado} className="form">
+              <div className="field">
+                <label className="fieldLabel">Cliente *</label>
+                <select value={headerForm.id_cliente}
+                  onChange={e => setHeaderForm({ ...headerForm, id_cliente: +e.target.value })} required>
+                  <option value={0}>— Selecciona cliente —</option>
+                  {clientes.map(c => <option key={c.id} value={c.id}>{c.razon_social}</option>)}
+                </select>
+              </div>
+
+              <div className="field">
+                <label className="fieldLabel">Folio Interno *</label>
+                <input type="text" value={headerForm.folio_interno}
+                  style={{ textTransform: 'uppercase' }}
+                  onChange={e => setHeaderForm({ ...headerForm, folio_interno: e.target.value.toUpperCase() })}
+                  required />
+              </div>
+
+              <div className="formGrid2">
+                <div className="field">
+                  <label className="fieldLabel">Vendedor</label>
+                  <select value={headerForm.id_vendedor}
+                    onChange={e => setHeaderForm({ ...headerForm, id_vendedor: +e.target.value })}>
+                    <option value={0}>— Selecciona —</option>
+                    {vendedores.map(v => <option key={v.id} value={v.id}>{v.nombre}</option>)}
+                  </select>
+                </div>
+                <div className="field">
+                  <label className="fieldLabel">Forma de Pago</label>
+                  <select value={headerForm.id_forma_pago}
+                    onChange={e => setHeaderForm({ ...headerForm, id_forma_pago: +e.target.value })}>
+                    <option value={0}>— Selecciona —</option>
+                    {formasPago.map(fp => <option key={fp.id} value={fp.id}>{fp.nombre}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="formGrid2">
+                <div className="field">
+                  <label className="fieldLabel">Fecha *</label>
+                  <input type="date" value={headerForm.fecha}
+                    onChange={e => setHeaderForm({ ...headerForm, fecha: e.target.value })} required />
+                </div>
+                <div className="field">
+                  <label className="fieldLabel">Vencimiento *</label>
+                  <input type="date" value={headerForm.fecha_vencimiento}
+                    onChange={e => setHeaderForm({ ...headerForm, fecha_vencimiento: e.target.value })} required />
+                </div>
+              </div>
+
+              <div className="field">
+                <label className="fieldLabel">Notas</label>
+                <input type="text" value={headerForm.notas}
+                  onChange={e => setHeaderForm({ ...headerForm, notas: e.target.value })} />
+              </div>
+
+              <button type="submit" className="btnPrimary" style={{ justifyContent: 'center' }} disabled={savingHeader}>
+                <Check size={18} />
+                {savingHeader ? 'Guardando...' : 'Guardar Cambios'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal editar folio interno */}
+      {folioInternoOpen && (
+        <div className="overlay">
+          <div className="glass modal animate-scale">
+            <div className="modalHead">
+              <h3>Editar Folio Interno</h3>
+              <button onClick={() => setFolioInternoOpen(false)}><X size={20} /></button>
+            </div>
+            <form onSubmit={guardarFolioInterno} className="form">
+              <div className="field">
+                <label className="fieldLabel">Folio Interno *</label>
+                <input type="text" value={folioInternoValue}
+                  style={{ textTransform: 'uppercase' }}
+                  onChange={e => setFolioInternoValue(e.target.value.toUpperCase())}
+                  required autoFocus />
+              </div>
+              <button type="submit" className="btnPrimary" style={{ justifyContent: 'center' }} disabled={savingFolioInterno}>
+                <Check size={18} />
+                {savingFolioInterno ? 'Guardando...' : 'Guardar'}
               </button>
             </form>
           </div>

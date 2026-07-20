@@ -76,10 +76,11 @@ export default function CobranzaPage() {
 
   const q = searchTerm.toLowerCase();
   const pendientesFiltrados = pendientes.filter(f =>
-    f.folio.toLowerCase().includes(q) || f.cliente.toLowerCase().includes(q));
+    f.folio.toLowerCase().includes(q) || (f.folio_interno || '').toLowerCase().includes(q) ||
+    f.cliente.toLowerCase().includes(q));
   const pagosFiltrados = pagos.filter(p =>
-    p.folio.toLowerCase().includes(q) || p.cliente.toLowerCase().includes(q) ||
-    (p.referencia || '').toLowerCase().includes(q));
+    p.folio.toLowerCase().includes(q) || (p.folio_interno || '').toLowerCase().includes(q) ||
+    p.cliente.toLowerCase().includes(q) || (p.referencia || '').toLowerCase().includes(q));
 
   const facturaSel = pendientes.find(f => f.id === formData.id_factura);
   const totalCartera = pendientes.reduce((s, f) => s + Number(f.saldo), 0);
@@ -114,7 +115,7 @@ export default function CobranzaPage() {
         <Search size={18} />
         <input
           type="text"
-          placeholder="Buscar por folio, cliente o referencia..."
+          placeholder="Buscar por folio, folio interno, cliente o referencia..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
         />
@@ -126,6 +127,7 @@ export default function CobranzaPage() {
             <thead>
               <tr>
                 <th>Folio</th>
+                <th>Folio Interno</th>
                 <th>Cliente</th>
                 <th>Vence</th>
                 <th className="tdNum">Total</th>
@@ -137,14 +139,15 @@ export default function CobranzaPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} className="emptyCell">Cargando...</td></tr>
+                <tr><td colSpan={9} className="emptyCell">Cargando...</td></tr>
               ) : pendientesFiltrados.length === 0 ? (
-                <tr><td colSpan={8} className="emptyCell">No hay facturas pendientes de cobro 🎉</td></tr>
+                <tr><td colSpan={9} className="emptyCell">No hay facturas pendientes de cobro 🎉</td></tr>
               ) : pendientesFiltrados.map(f => (
                 <tr key={f.id}>
                   <td className="tdBold">
                     <Link href={`/facturas/${f.id}`} style={{ color: 'var(--info)' }}>{f.folio}</Link>
                   </td>
+                  <td className="tdBold">{f.folio_interno}</td>
                   <td>{f.cliente}</td>
                   <td className="tdMuted">{fecha(f.fecha_vencimiento)}</td>
                   <td className="tdNum">{money(f.total)}</td>
@@ -169,6 +172,7 @@ export default function CobranzaPage() {
               <tr>
                 <th>Fecha</th>
                 <th>Folio</th>
+                <th>Folio Interno</th>
                 <th>Cliente</th>
                 <th>Forma de Pago</th>
                 <th>Banco</th>
@@ -179,15 +183,16 @@ export default function CobranzaPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} className="emptyCell">Cargando...</td></tr>
+                <tr><td colSpan={9} className="emptyCell">Cargando...</td></tr>
               ) : pagosFiltrados.length === 0 ? (
-                <tr><td colSpan={8} className="emptyCell">No hay pagos registrados</td></tr>
+                <tr><td colSpan={9} className="emptyCell">No hay pagos registrados</td></tr>
               ) : pagosFiltrados.map(p => (
                 <tr key={p.id}>
                   <td className="tdMuted">{fecha(p.fecha)}</td>
                   <td className="tdBold">
                     <Link href={`/facturas/${p.id_factura}`} style={{ color: 'var(--info)' }}>{p.folio}</Link>
                   </td>
+                  <td className="tdBold">{p.folio_interno}</td>
                   <td>{p.cliente}</td>
                   <td>{p.forma_pago || '—'}</td>
                   <td className="tdMuted">{p.banco || '—'}</td>
@@ -226,7 +231,7 @@ export default function CobranzaPage() {
                   <option value={0}>— Selecciona factura —</option>
                   {pendientes.map(f => (
                     <option key={f.id} value={f.id}>
-                      {f.folio} — {f.cliente} (saldo {money(f.saldo)})
+                      {f.folio} · {f.folio_interno} — {f.cliente} (saldo {money(f.saldo)})
                     </option>
                   ))}
                 </select>

@@ -17,7 +17,7 @@ export async function GET() {
        FROM pagos WHERE fecha >= ?`, [inicioMes]);
 
     const [saldos] = await pool.query(`
-      SELECT f.id, f.folio, f.total, f.fecha, f.fecha_vencimiento, f.estado,
+      SELECT f.id, f.folio, f.folio_interno, f.total, f.fecha, f.fecha_vencimiento, f.estado,
              c.razon_social AS cliente,
              COALESCE(p.cobrado, 0) AS cobrado
       FROM facturas f
@@ -58,7 +58,7 @@ export async function GET() {
       .slice(0, 8);
 
     const [ultimas] = await pool.query(`
-      SELECT f.id, f.folio, f.fecha, f.total, f.estado, c.razon_social AS cliente
+      SELECT f.id, f.folio, f.folio_interno, f.fecha, f.total, f.estado, c.razon_social AS cliente
       FROM facturas f JOIN clientes c ON c.id = f.id_cliente
       ORDER BY f.id DESC LIMIT 6
     `);

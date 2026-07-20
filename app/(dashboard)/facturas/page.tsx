@@ -9,6 +9,7 @@ import { money, fecha, badgeEstadoCobro } from '@/lib/format';
 interface Factura {
   id: number;
   folio: string;
+  folio_interno: string;
   fecha: string;
   cliente: string;
   vendedor: string | null;
@@ -35,7 +36,7 @@ export default function FacturasPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
-    id_cliente: 0, id_vendedor: 0, id_forma_pago: 0,
+    id_cliente: 0, id_vendedor: 0, id_forma_pago: 0, folio_interno: '',
     fecha: new Date().toISOString().slice(0, 10),
     fecha_vencimiento: '', notas: '',
   });
@@ -55,6 +56,7 @@ export default function FacturasPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.id_cliente) { alert('Selecciona un cliente'); return; }
+    if (!formData.folio_interno.trim()) { alert('El folio interno es obligatorio'); return; }
     setSaving(true);
     try {
       const res = await fetch('/api/facturas', {
@@ -78,6 +80,7 @@ export default function FacturasPage() {
     const q = searchTerm.toLowerCase();
     const coincideBusqueda =
       f.folio.toLowerCase().includes(q) ||
+      f.folio_interno.toLowerCase().includes(q) ||
       f.cliente.toLowerCase().includes(q);
     return coincideFiltro && coincideBusqueda;
   });
@@ -111,7 +114,7 @@ export default function FacturasPage() {
         <Search size={18} />
         <input
           type="text"
-          placeholder="Buscar por folio o cliente..."
+          placeholder="Buscar por folio, folio interno o cliente..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
         />
@@ -122,6 +125,7 @@ export default function FacturasPage() {
           <thead>
             <tr>
               <th>Folio</th>
+              <th>Folio Interno</th>
               <th>Fecha</th>
               <th>Cliente</th>
               <th>Vendedor</th>
@@ -135,15 +139,16 @@ export default function FacturasPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} className="emptyCell">Cargando...</td></tr>
+              <tr><td colSpan={11} className="emptyCell">Cargando...</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={10} className="emptyCell">No hay facturas</td></tr>
+              <tr><td colSpan={11} className="emptyCell">No hay facturas</td></tr>
             ) : filtered.map(f => (
               <tr key={f.id} style={f.estado === 'Cancelada' ? { opacity: 0.55 } : undefined}>
                 <td className="tdBold">
                   <Link href={`/facturas/${f.id}`} style={{ color: 'var(--info)' }}>{f.folio}</Link>
                   {f.estado === 'Cancelada' && <span className="badge bGris" style={{ marginLeft: 6 }}>Cancelada</span>}
                 </td>
+                <td className="tdBold">{f.folio_interno}</td>
                 <td className="tdMuted">{fecha(f.fecha)}</td>
                 <td>{f.cliente}</td>
                 <td className="tdMuted">{f.vendedor || '—'}</td>
@@ -184,6 +189,15 @@ export default function FacturasPage() {
                     Crédito: {clienteSel.dias_credito} días (el vencimiento se calcula automático si lo dejas vacío)
                   </small>
                 )}
+              </div>
+
+              <div className="field">
+                <label className="fieldLabel">Folio Interno *</label>
+                <input type="text" value={formData.folio_interno}
+                  placeholder="Ej. ALM-2026-001"
+                  style={{ textTransform: 'uppercase' }}
+                  onChange={e => setFormData({ ...formData, folio_interno: e.target.value.toUpperCase() })}
+                  required />
               </div>
 
               <div className="formGrid2">

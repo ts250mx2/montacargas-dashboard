@@ -56,7 +56,19 @@ export async function GET(
       LEFT JOIN marcas m   ON m.id = p.id_marca
       WHERE p.activo = 1 ORDER BY p.descripcion`);
 
+    // Catálogos para editar el encabezado de la factura
+    // (incluye el cliente actual aunque haya sido desactivado, para no perderlo del selector)
+    const [clientes] = await pool.query(
+      'SELECT id, razon_social, dias_credito FROM clientes WHERE activo = 1 OR id = ? ORDER BY razon_social',
+      [factura.id_cliente]
+    );
+    const [vendedores] = await pool.query('SELECT id, nombre FROM vendedores WHERE activo = 1 ORDER BY nombre');
+    const [formasPago] = await pool.query('SELECT id, nombre FROM formas_pago WHERE activo = 1 ORDER BY nombre');
+
     return NextResponse.json({
+      clientes,
+      vendedores,
+      formasPago,
       factura: {
         ...factura,
         cobrado: Math.round(cobrado * 100) / 100,
@@ -92,9 +104,40 @@ export async function PUT(
       return NextResponse.json({ success: true });
     }
 
+    // Editar solo el folio interno
+    if (b.accion === 'folio_interno') {
+      const [estadoRows] = await pool.query('SELECT estado FROM facturas WHERE id = ?', [id]);
+      const facturaActual = (estadoRows as any[])[0];
+      if (!facturaActual) return NextResponse.json({ message: 'Factura no encontrada' }, { status: 404 });
+      if (facturaActual.estado === 'Cancelada') {
+        return NextResponse.json({ message: 'No se puede modificar una factura cancelada' }, { status: 400 });
+      }
+      const folioInterno = String(b.folio_interno ?? '').trim().toUpperCase();
+      if (!folioInterno) {
+        return NextResponse.json({ message: 'El folio interno es obligatorio' }, { status: 400 });
+      }
+      await pool.query('UPDATE facturas SET folio_interno = ? WHERE id = ?', [folioInterno, id]);
+      return NextResponse.json({ success: true });
+    }
+
+    // Editar encabezado completo (cliente, vendedor, forma de pago, fechas, notas)
+    const [estadoRows] = await pool.query('SELECT estado FROM facturas WHERE id = ?', [id]);
+    const facturaActual = (estadoRows as any[])[0];
+    if (!facturaActual) return NextResponse.json({ message: 'Factura no encontrada' }, { status: 404 });
+    if (facturaActual.estado === 'Cancelada') {
+      return NextResponse.json({ message: 'No se puede modificar una factura cancelada' }, { status: 400 });
+    }
+    if (!b.id_cliente) {
+      return NextResponse.json({ message: 'El cliente es obligatorio' }, { status: 400 });
+    }
+    const folioInterno = String(b.folio_interno ?? '').trim().toUpperCase();
+    if (!folioInterno) {
+      return NextResponse.json({ message: 'El folio interno es obligatorio' }, { status: 400 });
+    }
+
     await pool.query(
-      `UPDATE facturas SET fecha = ?, id_vendedor = ?, id_forma_pago = ?, fecha_vencimiento = ?, notas = ? WHERE id = ?`,
-      [b.fecha, b.id_vendedor || null, b.id_forma_pago || null, b.fecha_vencimiento, b.notas ?? '', id]
+      `UPDATE facturas SET id_cliente = ?, folio_interno = ?, fecha = ?, id_vendedor = ?, id_forma_pago = ?, fecha_vencimiento = ?, notas = ? WHERE id = ?`,
+      [b.id_cliente, folioInterno, b.fecha, b.id_vendedor || null, b.id_forma_pago || null, b.fecha_vencimiento, b.notas ?? '', id]
     );
     return NextResponse.json({ success: true });
   } catch (error: any) {

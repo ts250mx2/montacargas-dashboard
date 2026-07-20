@@ -151,14 +151,15 @@ export default function InicioPage() {
               <div className="tableWrap">
                 <table className="dataTable">
                   <thead>
-                    <tr><th>Folio</th><th>Cliente</th><th>Vence</th><th className="tdNum">Saldo</th><th>Estado</th></tr>
+                    <tr><th>Folio</th><th>Folio Interno</th><th>Cliente</th><th>Vence</th><th className="tdNum">Saldo</th><th>Estado</th></tr>
                   </thead>
                   <tbody>
                     {stats.urgentes.length === 0 ? (
-                      <tr><td colSpan={5} className="emptyCell">Sin facturas pendientes de cobro 🎉</td></tr>
+                      <tr><td colSpan={6} className="emptyCell">Sin facturas pendientes de cobro 🎉</td></tr>
                     ) : stats.urgentes.map(f => (
                       <tr key={f.id}>
                         <td><Link href={`/facturas/${f.id}`} className="tdBold" style={{ color: 'var(--info)' }}>{f.folio}</Link></td>
+                        <td className="tdBold">{f.folio_interno}</td>
                         <td>{f.cliente}</td>
                         <td className="tdMuted">{fecha(f.fecha_vencimiento)}</td>
                         <td className="tdNum tdBold">{money(f.saldo)}</td>
@@ -180,14 +181,15 @@ export default function InicioPage() {
               <div className="tableWrap">
                 <table className="dataTable">
                   <thead>
-                    <tr><th>Folio</th><th>Cliente</th><th>Fecha</th><th className="tdNum">Total</th></tr>
+                    <tr><th>Folio</th><th>Folio Interno</th><th>Cliente</th><th>Fecha</th><th className="tdNum">Total</th></tr>
                   </thead>
                   <tbody>
                     {stats.ultimas.length === 0 ? (
-                      <tr><td colSpan={4} className="emptyCell">Aún no hay facturas</td></tr>
+                      <tr><td colSpan={5} className="emptyCell">Aún no hay facturas</td></tr>
                     ) : stats.ultimas.map(f => (
                       <tr key={f.id}>
                         <td><Link href={`/facturas/${f.id}`} className="tdBold" style={{ color: 'var(--info)' }}>{f.folio}</Link></td>
+                        <td className="tdBold">{f.folio_interno}</td>
                         <td>{f.cliente}</td>
                         <td className="tdMuted">{fecha(f.fecha)}</td>
                         <td className="tdNum tdBold">{money(f.total)}</td>
