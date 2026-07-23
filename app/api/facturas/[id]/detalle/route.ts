@@ -2,6 +2,36 @@ import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { recalcularTotales } from '@/lib/facturas';
 
+interface LineaEntrada {
+  id_producto?: number;
+  cantidad?: number | string;
+  precio?: number | string;
+  descuento?: number | string;
+}
+
+/** Inserta una partida. Devuelve un mensaje de error o null si todo salió bien. */
+async function insertarLinea(idFactura: string, linea: LineaEntrada): Promise<string | null> {
+  if (!linea.id_producto || !linea.cantidad || Number(linea.cantidad) <= 0) {
+    return 'Producto y cantidad son obligatorios';
+  }
+
+  const [prodRows] = await pool.query('SELECT precio, costo FROM productos WHERE id = ?', [linea.id_producto]);
+  const producto = (prodRows as any[])[0];
+  if (!producto) return 'Producto no encontrado';
+
+  const cantidad = Number(linea.cantidad);
+  const precio = linea.precio !== undefined && linea.precio !== '' ? Number(linea.precio) : Number(producto.precio);
+  const descuento = Number(linea.descuento ?? 0); // porcentaje 0-100
+  const importe = Math.round(cantidad * precio * (1 - descuento / 100) * 100) / 100;
+
+  await pool.query(
+    `INSERT INTO factura_detalle (id_factura, id_producto, cantidad, precio, descuento, importe, costo)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [idFactura, linea.id_producto, cantidad, precio, descuento, importe, producto.costo]
+  );
+  return null;
+}
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -9,9 +39,6 @@ export async function POST(
   const { id } = await params;
   try {
     const b = await request.json();
-    if (!b.id_producto || !b.cantidad || b.cantidad <= 0) {
-      return NextResponse.json({ message: 'Producto y cantidad son obligatorios' }, { status: 400 });
-    }
 
     const [facRows] = await pool.query('SELECT estado FROM facturas WHERE id = ?', [id]);
     const factura = (facRows as any[])[0];
@@ -20,20 +47,23 @@ export async function POST(
       return NextResponse.json({ message: 'No se puede modificar una factura cancelada' }, { status: 400 });
     }
 
-    const [prodRows] = await pool.query('SELECT precio, costo FROM productos WHERE id = ?', [b.id_producto]);
-    const producto = (prodRows as any[])[0];
-    if (!producto) return NextResponse.json({ message: 'Producto no encontrado' }, { status: 404 });
+    // Alta múltiple: se usa al volcar las partidas leídas de un PDF
+    if (Array.isArray(b.lineas)) {
+      let agregadas = 0;
+      const errores: string[] = [];
 
-    const cantidad = Number(b.cantidad);
-    const precio = b.precio !== undefined && b.precio !== '' ? Number(b.precio) : Number(producto.precio);
-    const descuento = Number(b.descuento ?? 0); // porcentaje 0-100
-    const importe = Math.round(cantidad * precio * (1 - descuento / 100) * 100) / 100;
+      for (const [i, linea] of (b.lineas as LineaEntrada[]).entries()) {
+        const error = await insertarLinea(id, linea);
+        if (error) errores.push(`Partida ${i + 1}: ${error}`);
+        else agregadas++;
+      }
 
-    await pool.query(
-      `INSERT INTO factura_detalle (id_factura, id_producto, cantidad, precio, descuento, importe, costo)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [id, b.id_producto, cantidad, precio, descuento, importe, producto.costo]
-    );
+      if (agregadas > 0) await recalcularTotales(id);
+      return NextResponse.json({ success: true, agregadas, errores });
+    }
+
+    const error = await insertarLinea(id, b);
+    if (error) return NextResponse.json({ message: error }, { status: 400 });
 
     await recalcularTotales(id);
     return NextResponse.json({ success: true });

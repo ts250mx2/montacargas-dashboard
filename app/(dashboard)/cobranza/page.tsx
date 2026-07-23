@@ -1,9 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { DollarSign, Search, Plus, X, Check, Trash2, AlertTriangle } from 'lucide-react';
 import { money, fecha, badgeEstadoCobro } from '@/lib/format';
+import { describirPeriodo, enRango, filtroPeriodo, rangoDeFiltro, type FiltroPeriodo } from '@/lib/periodos';
+import PeriodoFilter from '@/components/PeriodoFilter';
+import BotonExcel from '@/components/BotonExcel';
+import type { ExcelOpciones } from '@/lib/exportar';
 
 export default function CobranzaPage() {
   const [pagos, setPagos] = useState<any[]>([]);
@@ -11,6 +15,7 @@ export default function CobranzaPage() {
   const [formasPago, setFormasPago] = useState<any[]>([]);
   const [bancos, setBancos] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [periodo, setPeriodo] = useState<FiltroPeriodo>(() => filtroPeriodo('todo'));
   const [vista, setVista] = useState<'pendientes' | 'pagos'>('pendientes');
   const [loading, setLoading] = useState(true);
 
@@ -74,16 +79,63 @@ export default function CobranzaPage() {
     finally { setDeleting(false); }
   };
 
+  const rango = useMemo(() => rangoDeFiltro(periodo), [periodo]);
+
+  // El periodo se aplica a la fecha de la factura en pendientes y a la fecha del pago en el historial
+  const pendientesPeriodo = pendientes.filter(f => enRango(f.fecha, rango));
+  const pagosPeriodo = pagos.filter(p => enRango(p.fecha, rango));
+
   const q = searchTerm.toLowerCase();
-  const pendientesFiltrados = pendientes.filter(f =>
+  const pendientesFiltrados = pendientesPeriodo.filter(f =>
     f.folio.toLowerCase().includes(q) || (f.folio_interno || '').toLowerCase().includes(q) ||
     f.cliente.toLowerCase().includes(q));
-  const pagosFiltrados = pagos.filter(p =>
+  const pagosFiltrados = pagosPeriodo.filter(p =>
     p.folio.toLowerCase().includes(q) || (p.folio_interno || '').toLowerCase().includes(q) ||
     p.cliente.toLowerCase().includes(q) || (p.referencia || '').toLowerCase().includes(q));
 
+  // El Excel refleja la vista activa con sus filtros de periodo y búsqueda
+  const opcionesExcel = (): ExcelOpciones<any> => (
+    vista === 'pendientes'
+      ? {
+          archivo: 'cobranza-por-cobrar',
+          hoja: 'Por Cobrar',
+          titulo: 'Facturas por cobrar',
+          subtitulo: describirPeriodo(periodo),
+          filas: pendientesFiltrados,
+          columnas: [
+            { titulo: 'Folio',         valor: f => f.folio },
+            { titulo: 'Folio Interno', valor: f => f.folio_interno },
+            { titulo: 'Cliente',       valor: f => f.cliente },
+            { titulo: 'Fecha',         tipo: 'fecha',  valor: f => f.fecha },
+            { titulo: 'Vencimiento',   tipo: 'fecha',  valor: f => f.fecha_vencimiento },
+            { titulo: 'Total',         tipo: 'moneda', valor: f => f.total,   total: true },
+            { titulo: 'Cobrado',       tipo: 'moneda', valor: f => f.cobrado, total: true },
+            { titulo: 'Saldo',         tipo: 'moneda', valor: f => f.saldo,   total: true },
+            { titulo: 'Estado',        valor: f => f.estado_cobro },
+          ],
+        }
+      : {
+          archivo: 'cobranza-pagos',
+          hoja: 'Pagos',
+          titulo: 'Historial de pagos',
+          subtitulo: describirPeriodo(periodo),
+          filas: pagosFiltrados,
+          columnas: [
+            { titulo: 'Fecha',         tipo: 'fecha',  valor: p => p.fecha },
+            { titulo: 'Folio',         valor: p => p.folio },
+            { titulo: 'Folio Interno', valor: p => p.folio_interno },
+            { titulo: 'Cliente',       valor: p => p.cliente },
+            { titulo: 'Forma de Pago', valor: p => p.forma_pago },
+            { titulo: 'Banco',         valor: p => p.banco },
+            { titulo: 'Referencia',    valor: p => p.referencia },
+            { titulo: 'Importe',       tipo: 'moneda', valor: p => p.importe, total: true },
+          ],
+        }
+  );
+
   const facturaSel = pendientes.find(f => f.id === formData.id_factura);
-  const totalCartera = pendientes.reduce((s, f) => s + Number(f.saldo), 0);
+  const totalCartera = pendientesPeriodo.reduce((s, f) => s + Number(f.saldo), 0);
+  const totalCobrado = pagosPeriodo.reduce((s, p) => s + Number(p.importe), 0);
 
   return (
     <div className="pageContainer">
@@ -93,23 +145,36 @@ export default function CobranzaPage() {
           <div>
             <h1>Cobranza</h1>
             <p className="pageSubtitle">
-              Cartera pendiente: <strong>{money(totalCartera)}</strong> en {pendientes.length} facturas
+              {vista === 'pendientes' ? (
+                <>Cartera pendiente: <strong>{money(totalCartera)}</strong> en {pendientesPeriodo.length} facturas</>
+              ) : (
+                <>Cobrado: <strong>{money(totalCobrado)}</strong> en {pagosPeriodo.length} pagos</>
+              )}
             </p>
           </div>
         </div>
-        <button className="btnPrimary" onClick={() => openModal()}>
-          <Plus size={18} /> Registrar Pago
-        </button>
+        <div className="headActions">
+          <BotonExcel opciones={opcionesExcel} disabled={loading} />
+          <button className="btnPrimary" onClick={() => openModal()}>
+            <Plus size={18} /> Registrar Pago
+          </button>
+        </div>
       </header>
 
       <div className="tabs">
         <button className={`tab ${vista === 'pendientes' ? 'tabActive' : ''}`} onClick={() => setVista('pendientes')}>
-          Facturas por Cobrar ({pendientes.length})
+          Facturas por Cobrar ({pendientesPeriodo.length})
         </button>
         <button className={`tab ${vista === 'pagos' ? 'tabActive' : ''}`} onClick={() => setVista('pagos')}>
-          Historial de Pagos ({pagos.length})
+          Historial de Pagos ({pagosPeriodo.length})
         </button>
       </div>
+
+      <PeriodoFilter
+        value={periodo}
+        onChange={setPeriodo}
+        label={vista === 'pendientes' ? 'Fecha de factura' : 'Fecha de pago'}
+      />
 
       <div className="glass searchBar">
         <Search size={18} />
@@ -141,7 +206,7 @@ export default function CobranzaPage() {
               {loading ? (
                 <tr><td colSpan={9} className="emptyCell">Cargando...</td></tr>
               ) : pendientesFiltrados.length === 0 ? (
-                <tr><td colSpan={9} className="emptyCell">No hay facturas pendientes de cobro 🎉</td></tr>
+                <tr><td colSpan={9} className="emptyCell">No hay facturas pendientes de cobro en este periodo 🎉</td></tr>
               ) : pendientesFiltrados.map(f => (
                 <tr key={f.id}>
                   <td className="tdBold">
@@ -185,7 +250,7 @@ export default function CobranzaPage() {
               {loading ? (
                 <tr><td colSpan={9} className="emptyCell">Cargando...</td></tr>
               ) : pagosFiltrados.length === 0 ? (
-                <tr><td colSpan={9} className="emptyCell">No hay pagos registrados</td></tr>
+                <tr><td colSpan={9} className="emptyCell">No hay pagos registrados en este periodo</td></tr>
               ) : pagosFiltrados.map(p => (
                 <tr key={p.id}>
                   <td className="tdMuted">{fecha(p.fecha)}</td>

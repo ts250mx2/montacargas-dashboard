@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, FileText, DollarSign, Users, Truck,
-  Package, Tags, Settings, ChevronsLeft, ChevronsRight, Menu,
+  Package, Tags, Settings, ChevronsLeft, ChevronsRight, Menu, Receipt,
 } from 'lucide-react';
 import { useSidebar } from './SidebarContext';
 import styles from './Sidebar.module.css';
@@ -17,6 +17,7 @@ export default function Sidebar() {
     { name: 'Inicio',        icon: LayoutDashboard, path: '/' },
     { name: 'Facturas',      icon: FileText,        path: '/facturas' },
     { name: 'Cobranza',      icon: DollarSign,      path: '/cobranza' },
+    { name: 'Gastos',        icon: Receipt,         path: '/gastos' },
     { name: 'Clientes',      icon: Users,           path: '/clientes' },
     { name: 'Productos',     icon: Package,         path: '/productos' },
     { name: 'Proveedores',   icon: Truck,           path: '/proveedores' },

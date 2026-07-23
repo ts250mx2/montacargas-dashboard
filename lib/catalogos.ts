@@ -9,6 +9,7 @@ export const CATALOGOS: Record<string, { titulo: string; columnas: string[] }> =
   lineas:      { titulo: 'Líneas de Producto', columnas: ['nombre'] },
   unidades:    { titulo: 'Unidades de Medida', columnas: ['nombre', 'abreviatura'] },
   vendedores:  { titulo: 'Vendedores',      columnas: ['nombre', 'telefono', 'correo'] },
+  categorias_gasto: { titulo: 'Categorías de Gasto', columnas: ['nombre'] },
 };
 
 export function esCatalogoValido(tabla: string): boolean {

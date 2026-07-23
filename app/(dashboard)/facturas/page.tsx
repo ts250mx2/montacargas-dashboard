@@ -1,10 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FileText, Search, Plus, X, Check, Eye } from 'lucide-react';
 import { money, fecha, badgeEstadoCobro } from '@/lib/format';
+import { describirPeriodo, enRango, filtroPeriodo, rangoDeFiltro, type FiltroPeriodo } from '@/lib/periodos';
+import PeriodoFilter from '@/components/PeriodoFilter';
+import BotonExcel from '@/components/BotonExcel';
+import LectorPdfFactura, { type LecturaPdf } from '@/components/LectorPdfFactura';
 
 interface Factura {
   id: number;
@@ -32,9 +36,12 @@ export default function FacturasPage() {
   const [formasPago, setFormasPago] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filtro, setFiltro] = useState('Todas');
+  const [periodo, setPeriodo] = useState<FiltroPeriodo>(() => filtroPeriodo('todo'));
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [pdfAdjunto, setPdfAdjunto] = useState<File | null>(null);
+  const [lecturaPdf, setLecturaPdf] = useState<LecturaPdf | null>(null);
   const [formData, setFormData] = useState({
     id_cliente: 0, id_vendedor: 0, id_forma_pago: 0, folio_interno: '',
     fecha: new Date().toISOString().slice(0, 10),
@@ -53,6 +60,30 @@ export default function FacturasPage() {
     setLoading(false);
   };
 
+  /** Rellena el formulario con lo que se pudo leer del PDF, sin pisar lo ya capturado. */
+  const aplicarLecturaPdf = (archivo: File | null, lectura: LecturaPdf | null) => {
+    setPdfAdjunto(archivo);
+    setLecturaPdf(lectura);
+    if (!lectura) return;
+
+    const { cfdi, cliente } = lectura;
+    const folioPdf = [cfdi.serie, cfdi.folio].filter(Boolean).join('-');
+
+    setFormData(previo => ({
+      ...previo,
+      id_cliente: cliente?.id ?? previo.id_cliente,
+      folio_interno: folioPdf ? folioPdf.toUpperCase() : previo.folio_interno,
+      fecha: cfdi.fecha || previo.fecha,
+      notas: cfdi.uuid && !previo.notas ? `CFDI ${cfdi.uuid}` : previo.notas,
+    }));
+  };
+
+  const cerrarModal = () => {
+    setIsModalOpen(false);
+    setPdfAdjunto(null);
+    setLecturaPdf(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.id_cliente) { alert('Selecciona un cliente'); return; }
@@ -65,24 +96,55 @@ export default function FacturasPage() {
         body: JSON.stringify(formData),
       });
       const data = await res.json();
-      if (res.ok) {
-        // Ir directo al detalle para capturar los productos
-        router.push(`/facturas/${data.id}`);
-      } else {
-        alert(data.message || 'Error al crear la factura');
+      if (!res.ok) { alert(data.message || 'Error al crear la factura'); return; }
+
+      // La factura ya existe: ahora se le cuelga el PDF y las partidas leídas
+      const avisos: string[] = [];
+
+      if (pdfAdjunto) {
+        const cuerpo = new FormData();
+        cuerpo.append('archivo', pdfAdjunto);
+        const resAdjunto = await fetch(`/api/facturas/${data.id}/adjunto`, { method: 'POST', body: cuerpo });
+        if (!resAdjunto.ok) {
+          const err = await resAdjunto.json().catch(() => ({}));
+          avisos.push(`No se pudo adjuntar el PDF: ${err.message || 'error desconocido'}`);
+        }
       }
+
+      const lineas = (lecturaPdf?.conceptos ?? [])
+        .filter(c => c.id_producto !== null)
+        .map(c => ({ id_producto: c.id_producto, cantidad: c.cantidad, precio: c.precio, descuento: 0 }));
+
+      if (lineas.length > 0) {
+        const resLineas = await fetch(`/api/facturas/${data.id}/detalle`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lineas }),
+        });
+        const datosLineas = await resLineas.json().catch(() => ({}));
+        if (!resLineas.ok) avisos.push(`No se pudieron agregar las partidas: ${datosLineas.message || ''}`);
+        else if (datosLineas.errores?.length) avisos.push(datosLineas.errores.join('\n'));
+      }
+
+      if (avisos.length) alert(avisos.join('\n'));
+
+      // Ir al detalle para revisar y completar la captura
+      router.push(`/facturas/${data.id}`);
     } catch { alert('Error de conexión'); }
     finally { setSaving(false); }
   };
 
+  const rango = useMemo(() => rangoDeFiltro(periodo), [periodo]);
+
   const filtered = facturas.filter(f => {
+    const coincidePeriodo = enRango(f.fecha, rango);
     const coincideFiltro = filtro === 'Todas' || f.estado_cobro === filtro;
     const q = searchTerm.toLowerCase();
     const coincideBusqueda =
       f.folio.toLowerCase().includes(q) ||
       f.folio_interno.toLowerCase().includes(q) ||
       f.cliente.toLowerCase().includes(q);
-    return coincideFiltro && coincideBusqueda;
+    return coincidePeriodo && coincideFiltro && coincideBusqueda;
   });
 
   const clienteSel = clientes.find(c => c.id === formData.id_cliente);
@@ -97,9 +159,35 @@ export default function FacturasPage() {
             <p className="pageSubtitle">Ciclo de ventas: facturación y estado de cobro</p>
           </div>
         </div>
-        <button className="btnPrimary" onClick={() => setIsModalOpen(true)}>
-          <Plus size={18} /> Nueva Factura
-        </button>
+        <div className="headActions">
+          <BotonExcel
+            disabled={loading}
+            opciones={() => ({
+              archivo: 'facturas',
+              hoja: 'Facturas',
+              titulo: 'Facturas',
+              subtitulo: `Estado: ${filtro} · ${describirPeriodo(periodo)}`,
+              filas: filtered,
+              columnas: [
+                { titulo: 'Folio',         valor: f => f.folio },
+                { titulo: 'Folio Interno', valor: f => f.folio_interno },
+                { titulo: 'Fecha',         tipo: 'fecha',  valor: f => f.fecha },
+                { titulo: 'Cliente',       valor: f => f.cliente },
+                { titulo: 'Vendedor',      valor: f => f.vendedor },
+                { titulo: 'Forma de Pago', valor: f => f.forma_pago },
+                { titulo: 'Vencimiento',   tipo: 'fecha',  valor: f => f.fecha_vencimiento },
+                { titulo: 'Total',         tipo: 'moneda', valor: f => f.total,   total: true },
+                { titulo: 'Cobrado',       tipo: 'moneda', valor: f => f.cobrado, total: true },
+                { titulo: 'Saldo',         tipo: 'moneda', valor: f => f.saldo,   total: true },
+                { titulo: 'Estado Cobro',  valor: f => f.estado_cobro },
+                { titulo: 'Estado',        valor: f => f.estado },
+              ],
+            })}
+          />
+          <button className="btnPrimary" onClick={() => setIsModalOpen(true)}>
+            <Plus size={18} /> Nueva Factura
+          </button>
+        </div>
       </header>
 
       <div className="tabs">
@@ -109,6 +197,8 @@ export default function FacturasPage() {
           </button>
         ))}
       </div>
+
+      <PeriodoFilter value={periodo} onChange={setPeriodo} label="Fecha de factura" />
 
       <div className="glass searchBar">
         <Search size={18} />
@@ -141,7 +231,7 @@ export default function FacturasPage() {
             {loading ? (
               <tr><td colSpan={11} className="emptyCell">Cargando...</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={11} className="emptyCell">No hay facturas</td></tr>
+              <tr><td colSpan={11} className="emptyCell">No hay facturas con los filtros seleccionados</td></tr>
             ) : filtered.map(f => (
               <tr key={f.id} style={f.estado === 'Cancelada' ? { opacity: 0.55 } : undefined}>
                 <td className="tdBold">
@@ -173,10 +263,16 @@ export default function FacturasPage() {
           <div className="glass modal animate-scale">
             <div className="modalHead">
               <h3>Nueva Factura</h3>
-              <button onClick={() => setIsModalOpen(false)}><X size={20} /></button>
+              <button onClick={cerrarModal}><X size={20} /></button>
             </div>
 
             <form onSubmit={handleSubmit} className="form">
+              <LectorPdfFactura
+                archivo={pdfAdjunto}
+                lectura={lecturaPdf}
+                onCambio={aplicarLecturaPdf}
+              />
+
               <div className="field">
                 <label className="fieldLabel">Cliente *</label>
                 <select value={formData.id_cliente}

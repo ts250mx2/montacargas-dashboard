@@ -11,9 +11,13 @@
   },
   "dependencies": {
     "cookie": "^1.1.1",
+    "exceljs": "^4.4.0",
+    "html2canvas-pro": "^2.3.1",
+    "jspdf": "^4.2.1",
     "lucide-react": "^1.14.0",
     "mysql2": "^3.22.3",
     "next": "16.2.4",
+    "pdfjs-dist": "^6.1.200",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },

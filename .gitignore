@@ -20,6 +20,9 @@ yarn-error.log*
 # env files
 .env
 
+# PDF adjuntos a las facturas (documentos del negocio, no del código)
+/almacen/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

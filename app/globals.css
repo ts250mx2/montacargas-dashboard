@@ -239,7 +239,14 @@ input:focus, select:focus, textarea:focus {
   border-radius: var(--r);
   transition: var(--ease);
 }
-.btnGhost:hover { border-color: var(--primary); box-shadow: 0 0 0 3px var(--yellow-glow); }
+.btnGhost:hover:not(:disabled) { border-color: var(--primary); box-shadow: 0 0 0 3px var(--yellow-glow); }
+.btnGhost:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Acciones del encabezado (exportar + acción principal) */
+.headActions { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+
+@keyframes girar { to { transform: rotate(360deg); } }
+.girando { animation: girar 0.9s linear infinite; }
 
 .btnDanger {
   display: inline-flex; align-items: center; gap: 0.5rem;
@@ -485,6 +492,269 @@ input:focus, select:focus, textarea:focus {
   border-color: transparent;
   box-shadow: 0 4px 14px var(--yellow-glow);
 }
+
+/* Filtro por periodo */
+.periodoBar {
+  display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap;
+  padding: 0.6rem 1rem;
+  margin-bottom: 1.25rem;
+}
+.periodoLabel {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  font-size: 0.75rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.periodoLabel svg { color: var(--primary); }
+.periodoChips { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.periodoChip {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.42rem 0.9rem;
+  border-radius: 999px;
+  font-weight: 600; font-size: 0.82rem;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  transition: var(--ease);
+}
+.periodoChip:hover { border-color: var(--primary); color: var(--text); transform: translateY(-1px); }
+.periodoChip:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--yellow-glow); }
+.periodoChipActive {
+  background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-deep) 100%);
+  color: var(--on-primary);
+  border-color: transparent;
+  box-shadow: 0 4px 14px var(--yellow-glow);
+}
+.periodoChipActive:hover { color: var(--on-primary); }
+.periodoRango {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+@media (max-width: 720px) { .periodoRango { margin-left: 0; } }
+
+/* Rango de fechas personalizado */
+.periodoFechas {
+  flex-basis: 100%;
+  display: flex; align-items: flex-end; gap: 0.75rem; flex-wrap: wrap;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--border);
+  animation: fadeUp 0.28s var(--ease-out) both;
+}
+.periodoFecha { display: flex; flex-direction: column; gap: 0.3rem; }
+.periodoFecha span {
+  font-size: 0.7rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.periodoFecha input {
+  width: auto; min-width: 160px;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.85rem;
+}
+.periodoLimpiar {
+  padding: 0.5rem 0.9rem;
+  border-radius: var(--r);
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.8rem; font-weight: 600;
+  transition: var(--ease);
+}
+.periodoLimpiar:hover { border-color: var(--danger); color: var(--danger); }
+
+/* ─── PDF adjunto: lector en el alta y barra en el detalle ─── */
+.lectorPdf { display: flex; flex-direction: column; gap: 0.6rem; }
+
+.lectorZona {
+  display: flex; align-items: center; gap: 0.75rem;
+  width: 100%;
+  padding: 0.9rem 1rem;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--r);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  text-align: left;
+  transition: var(--ease);
+}
+.lectorZona:hover { border-color: var(--primary); background: var(--yellow-soft); color: var(--text); }
+.lectorZona span { display: flex; flex-direction: column; gap: 2px; }
+.lectorZona strong { font-size: 0.9rem; color: var(--text); }
+.lectorZona small { font-size: 0.78rem; }
+
+.lectorArchivo {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.6rem 0.85rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r);
+  background: var(--surface-2);
+}
+.lectorNombre {
+  flex: 1; min-width: 0;
+  font-size: 0.88rem; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.lectorResultado {
+  padding: 0.85rem 1rem;
+  border-radius: var(--r);
+  border: 1.5px solid var(--border);
+  border-left: 3px solid var(--success);
+  background: var(--surface-2);
+  display: flex; flex-direction: column; gap: 0.6rem;
+  animation: fadeUp 0.3s var(--ease-out) both;
+}
+.lectorFuente {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.78rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--success);
+}
+
+.lectorDatos { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; }
+.lectorDatos > div { display: flex; gap: 0.5rem; }
+.lectorDatos dt {
+  min-width: 116px; flex-shrink: 0;
+  color: var(--text-muted); font-weight: 600;
+}
+.lectorDatos dd { font-weight: 600; word-break: break-word; }
+.lectorUuid { font-family: ui-monospace, 'Cascadia Code', monospace; font-size: 0.76rem; }
+
+.lectorOk { color: var(--success); }
+.lectorPendiente { color: var(--warning); }
+
+.lectorConceptos { border-top: 1px dashed var(--border); padding-top: 0.6rem; }
+.lectorConceptosTitulo { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.4rem; }
+.lectorConceptos ul { list-style: none; display: flex; flex-direction: column; gap: 0.25rem; }
+.lectorConceptos li {
+  display: flex; align-items: center; gap: 0.45rem;
+  font-size: 0.82rem;
+  padding: 0.25rem 0;
+}
+.lectorConceptos li svg { flex-shrink: 0; }
+.lectorConceptoTexto {
+  flex: 1; min-width: 0; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lectorConceptoTexto code {
+  font-size: 0.75rem; font-weight: 700;
+  padding: 1px 5px; margin-right: 4px;
+  border-radius: var(--r-sm);
+  background: var(--yellow-soft); color: #8a7500;
+}
+.lectorConceptoNum {
+  flex-shrink: 0; color: var(--text-muted);
+  font-variant-numeric: tabular-nums; font-size: 0.8rem;
+}
+
+.lectorAviso {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.8rem; color: var(--text-muted);
+  margin-top: 0.4rem;
+}
+.lectorAvisoError { color: var(--danger); }
+
+/* Barra de adjunto en el detalle de la factura */
+.adjuntoBarra {
+  display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+.adjuntoBarra > svg { color: var(--primary); flex-shrink: 0; }
+.adjuntoInfo { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 2px; }
+.adjuntoNombre {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  font-weight: 700; font-size: 0.9rem; color: var(--info);
+}
+.adjuntoNombre:hover { text-decoration: underline; }
+.adjuntoInfo small { font-size: 0.75rem; color: var(--text-muted); }
+.adjuntoVacio { flex: 1; color: var(--text-muted); font-size: 0.88rem; }
+
+/* Chip de comprobante en la tabla de gastos */
+.adjuntoChip {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem; font-weight: 700;
+  background: rgba(0, 145, 255, 0.13);
+  color: #0072c9;
+  border: 1.5px solid transparent;
+  transition: var(--ease);
+}
+.adjuntoChip:hover { border-color: var(--info); transform: translateY(-1px); }
+.adjuntoChipVacio {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border-color: var(--border);
+  border-style: dashed;
+}
+.adjuntoChipVacio:hover { border-color: var(--primary); color: var(--text); border-style: solid; }
+[data-theme='dark'] .adjuntoChip { color: #52a9ff; }
+
+/* ─── Partidas de gasto ─── */
+.partidas { display: flex; flex-direction: column; gap: 0.5rem; }
+.partidasHead { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.partidasAgregar { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+
+.partidasVacio {
+  display: flex; align-items: center; gap: 0.6rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--r);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: left;
+  transition: var(--ease);
+}
+.partidasVacio:hover { border-color: var(--primary); color: var(--text); }
+
+.partidasTabla { font-size: 0.85rem; }
+.partidasTabla thead th { padding: 0.5rem 0.6rem; font-size: 0.68rem; }
+.partidasTabla tbody td { padding: 0.35rem 0.4rem; }
+.partidasTabla tbody tr { animation: none; }
+.partidasTabla tbody tr:hover { background: transparent; }
+.partidasTabla input {
+  padding: 0.4rem 0.55rem;
+  font-size: 0.85rem;
+  min-width: 70px;
+}
+.partidasTabla input.tdNum { text-align: right; }
+.partidasTabla td:nth-child(2) input { min-width: 180px; }
+
+.partidasCuadre {
+  display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+  font-size: 0.82rem;
+}
+
+/* Desglose expandido en la tabla de gastos */
+.partidasToggle {
+  display: inline-flex; align-items: center; gap: 0.15rem;
+  padding: 0.1rem 0.4rem;
+  margin-right: 0.4rem;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.72rem; font-weight: 700;
+  vertical-align: middle;
+}
+.partidasToggle:hover { border-color: var(--primary); color: var(--text); }
+
+.filaPartidas > td { padding: 0 !important; background: var(--surface-2); }
+.partidasDesglose { font-size: 0.82rem; }
+.partidasDesglose thead th {
+  padding: 0.4rem 1rem;
+  font-size: 0.65rem;
+  background: transparent;
+  border-bottom: 1px solid var(--border);
+}
+.partidasDesglose tbody td { padding: 0.4rem 1rem; border-bottom: 1px dashed var(--border); }
+.partidasDesglose tbody tr:hover { background: transparent; }
 
 /* Toggle switch */
 .toggle { display: flex; align-items: center; gap: 0.75rem; cursor: pointer; user-select: none; }

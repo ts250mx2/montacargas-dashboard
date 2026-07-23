@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Trash2, X, Check, AlertTriangle, type LucideIcon } from 'lucide-react';
 import { money } from '@/lib/format';
+import BotonExcel from './BotonExcel';
 
 interface Entidad {
   id: number;
@@ -116,9 +117,32 @@ export default function EntidadPage({ titulo, subtitulo, singular, api, dataKey,
             <p className="pageSubtitle">{subtitulo}</p>
           </div>
         </div>
-        <button className="btnPrimary" onClick={() => openModal()}>
-          <Plus size={18} /> Nuevo {singular}
-        </button>
+        <div className="headActions">
+          <BotonExcel
+            disabled={loading}
+            opciones={() => ({
+              archivo: dataKey,
+              hoja: titulo,
+              titulo,
+              subtitulo: searchTerm ? `Búsqueda: "${searchTerm}"` : subtitulo,
+              filas: filtered,
+              columnas: [
+                { titulo: 'Razón Social',      valor: i => i.razon_social },
+                { titulo: 'RFC',               valor: i => i.rfc },
+                { titulo: 'Contacto',          valor: i => i.contacto },
+                { titulo: 'Teléfono',          valor: i => i.telefono },
+                { titulo: 'Correo',            valor: i => i.correo },
+                { titulo: 'Domicilio',         valor: i => i.domicilio },
+                { titulo: 'Días Crédito',      tipo: 'numero', valor: i => i.dias_credito },
+                { titulo: 'Límite Crédito',    tipo: 'moneda', valor: i => i.limite_credito, total: true },
+                { titulo: 'Estatus',           valor: i => (i.activo === 1 ? 'Activo' : 'Inactivo') },
+              ],
+            })}
+          />
+          <button className="btnPrimary" onClick={() => openModal()}>
+            <Plus size={18} /> Nuevo {singular}
+          </button>
+        </div>
       </header>
 
       <div className="glass searchBar">

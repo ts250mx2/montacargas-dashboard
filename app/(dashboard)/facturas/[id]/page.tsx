@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback, use } from 'react';
+import { useState, useEffect, useCallback, useRef, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   FileText, ArrowLeft, Plus, Trash2, X, Check, Ban, DollarSign, AlertTriangle, Pencil, Edit2,
+  Paperclip, Loader2, ExternalLink,
 } from 'lucide-react';
 import { money, fecha, badgeEstadoCobro } from '@/lib/format';
 
@@ -21,6 +22,12 @@ export default function FacturaDetallePage({ params }: { params: Promise<{ id: s
   const [formasPago, setFormasPago] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+
+  // PDF adjunto
+  const [adjunto, setAdjunto] = useState<any>(null);
+  const [subiendoPdf, setSubiendoPdf] = useState(false);
+  const [confirmBorrarPdf, setConfirmBorrarPdf] = useState(false);
+  const entradaPdf = useRef<HTMLInputElement>(null);
 
   // Agregar partida
   const [lineaOpen, setLineaOpen] = useState(false);
@@ -62,8 +69,32 @@ export default function FacturaDetallePage({ params }: { params: Promise<{ id: s
     setClientes(data.clientes || []);
     setVendedores(data.vendedores || []);
     setFormasPago(data.formasPago || []);
+    setAdjunto(data.adjunto || null);
     setLoading(false);
   }, [id]);
+
+  const subirPdf = async (archivo: File | undefined) => {
+    if (!archivo) return;
+    setSubiendoPdf(true);
+    try {
+      const cuerpo = new FormData();
+      cuerpo.append('archivo', archivo);
+      const res = await fetch(`/api/facturas/${id}/adjunto`, { method: 'POST', body: cuerpo });
+      if (res.ok) fetchData();
+      else { const err = await res.json(); alert(err.message || 'No se pudo adjuntar el PDF'); }
+    } catch { alert('Error de conexión'); }
+    finally {
+      setSubiendoPdf(false);
+      if (entradaPdf.current) entradaPdf.current.value = '';
+    }
+  };
+
+  const borrarPdf = async () => {
+    const res = await fetch(`/api/facturas/${id}/adjunto`, { method: 'DELETE' });
+    setConfirmBorrarPdf(false);
+    if (res.ok) fetchData();
+    else { const err = await res.json(); alert(err.message || 'No se pudo quitar el PDF'); }
+  };
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -250,6 +281,42 @@ export default function FacturaDetallePage({ params }: { params: Promise<{ id: s
           Esta factura está CANCELADA. No admite cambios ni pagos.
         </div>
       )}
+
+      {/* PDF adjunto */}
+      <div className="glass adjuntoBarra">
+        <Paperclip size={18} />
+        {adjunto ? (
+          <>
+            <div className="adjuntoInfo">
+              <a href={`/api/facturas/${id}/adjunto`} target="_blank" rel="noopener noreferrer"
+                className="adjuntoNombre">
+                {adjunto.nombre_original} <ExternalLink size={13} />
+              </a>
+              <small>
+                {(adjunto.tamano / 1024).toFixed(0)} KB
+                {adjunto.uuid_cfdi && <> · UUID {adjunto.uuid_cfdi}</>}
+              </small>
+            </div>
+            <button className="btnGhost" onClick={() => entradaPdf.current?.click()} disabled={subiendoPdf}>
+              {subiendoPdf ? <Loader2 size={16} className="girando" /> : <Paperclip size={16} />}
+              Reemplazar
+            </button>
+            <button className="iconBtn iconBtnDanger" onClick={() => setConfirmBorrarPdf(true)} title="Quitar PDF">
+              <Trash2 size={15} />
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="adjuntoVacio">Esta factura no tiene PDF adjunto</span>
+            <button className="btnGhost" onClick={() => entradaPdf.current?.click()} disabled={subiendoPdf}>
+              {subiendoPdf ? <Loader2 size={16} className="girando" /> : <Paperclip size={16} />}
+              {subiendoPdf ? 'Subiendo...' : 'Adjuntar PDF'}
+            </button>
+          </>
+        )}
+        <input ref={entradaPdf} type="file" accept="application/pdf,.pdf" hidden
+          onChange={e => subirPdf(e.target.files?.[0])} />
+      </div>
 
       {/* Totales */}
       <div className="kpiGrid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
@@ -602,6 +669,25 @@ export default function FacturaDetallePage({ params }: { params: Promise<{ id: s
       )}
 
       {/* Confirmar cancelación */}
+      {confirmBorrarPdf && (
+        <div className="overlay">
+          <div className="glass confirmModal animate-scale">
+            <div className="confirmIcon"><AlertTriangle size={40} /></div>
+            <h3>¿Quitar el PDF?</h3>
+            <p className="confirmMsg">
+              Se eliminará <strong>{adjunto?.nombre_original}</strong> del almacén.
+              Las partidas y los datos ya capturados en la factura no se tocan.
+            </p>
+            <div className="confirmBtns">
+              <button className="btnGhost" onClick={() => setConfirmBorrarPdf(false)}>Cancelar</button>
+              <button className="btnDanger" onClick={borrarPdf}>
+                <Trash2 size={16} /> Sí, quitar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {confirmCancel && (
         <div className="overlay">
           <div className="glass confirmModal animate-scale">

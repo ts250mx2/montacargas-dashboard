@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Package, Search, Plus, Edit2, Trash2, X, Check, AlertTriangle } from 'lucide-react';
 import { money } from '@/lib/format';
+import BotonExcel from '@/components/BotonExcel';
 
 interface Producto {
   id: number;
@@ -127,9 +128,36 @@ export default function ProductosPage() {
             <p className="pageSubtitle">Refacciones, precios, costos y márgenes</p>
           </div>
         </div>
-        <button className="btnPrimary" onClick={() => openModal()}>
-          <Plus size={18} /> Nuevo Producto
-        </button>
+        <div className="headActions">
+          <BotonExcel
+            disabled={loading}
+            opciones={() => ({
+              archivo: 'productos',
+              hoja: 'Productos',
+              titulo: 'Productos',
+              subtitulo: searchTerm
+                ? `Búsqueda: "${searchTerm}"`
+                : 'Refacciones, precios, costos y márgenes',
+              filas: filtered,
+              columnas: [
+                { titulo: 'SKU',         valor: p => p.sku },
+                { titulo: 'Descripción', valor: p => p.descripcion },
+                { titulo: 'Marca',       valor: p => p.marca },
+                { titulo: 'Línea',       valor: p => p.linea },
+                { titulo: 'Unidad',      valor: p => p.unidad_abrev },
+                { titulo: 'Proveedor',   valor: p => p.proveedor },
+                { titulo: 'Costo',       tipo: 'moneda',     valor: p => p.costo },
+                { titulo: 'Precio',      tipo: 'moneda',     valor: p => p.precio },
+                { titulo: 'Margen',      tipo: 'porcentaje', valor: p => margen(Number(p.costo), Number(p.precio)) },
+                { titulo: 'Stock',       tipo: 'numero',     valor: p => p.stock },
+                { titulo: 'Estatus',     valor: p => (p.activo === 1 ? 'Activo' : 'Inactivo') },
+              ],
+            })}
+          />
+          <button className="btnPrimary" onClick={() => openModal()}>
+            <Plus size={18} /> Nuevo Producto
+          </button>
+        </div>
       </header>
 
       <div className="glass searchBar">

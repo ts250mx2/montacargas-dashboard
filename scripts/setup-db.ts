@@ -168,6 +168,69 @@ async function main() {
       KEY idx_producto (id_producto)
     ) ENGINE=InnoDB`,
 
+    `CREATE TABLE IF NOT EXISTS categorias_gasto (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      nombre VARCHAR(100) NOT NULL,
+      activo TINYINT NOT NULL DEFAULT 1
+    ) ENGINE=InnoDB`,
+
+    `CREATE TABLE IF NOT EXISTS gastos (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      fecha DATE NOT NULL,
+      folio VARCHAR(50) NOT NULL DEFAULT '',
+      concepto VARCHAR(300) NOT NULL,
+      id_proveedor INT NULL,
+      id_categoria INT NULL,
+      id_forma_pago INT NULL,
+      subtotal DECIMAL(12,2) NOT NULL DEFAULT 0,
+      iva DECIMAL(12,2) NOT NULL DEFAULT 0,
+      total DECIMAL(12,2) NOT NULL DEFAULT 0,
+      uuid_cfdi VARCHAR(40) NOT NULL DEFAULT '',
+      rfc_emisor VARCHAR(20) NOT NULL DEFAULT '',
+      deducible TINYINT NOT NULL DEFAULT 1,
+      estado ENUM('Vigente','Cancelado') NOT NULL DEFAULT 'Vigente',
+      notas VARCHAR(300) NOT NULL DEFAULT '',
+      KEY idx_fecha (fecha),
+      KEY idx_proveedor (id_proveedor),
+      KEY idx_categoria (id_categoria),
+      KEY idx_uuid (uuid_cfdi)
+    ) ENGINE=InnoDB`,
+
+    `CREATE TABLE IF NOT EXISTS gasto_detalle (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      id_gasto INT NOT NULL,
+      clave VARCHAR(50) NOT NULL DEFAULT '',
+      descripcion VARCHAR(300) NOT NULL,
+      cantidad DECIMAL(12,2) NOT NULL DEFAULT 1,
+      precio DECIMAL(12,2) NOT NULL DEFAULT 0,
+      importe DECIMAL(12,2) NOT NULL DEFAULT 0,
+      KEY idx_gasto (id_gasto)
+    ) ENGINE=InnoDB`,
+
+    `CREATE TABLE IF NOT EXISTS gasto_adjuntos (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      id_gasto INT NOT NULL,
+      nombre_original VARCHAR(255) NOT NULL,
+      archivo VARCHAR(120) NOT NULL,
+      extension VARCHAR(5) NOT NULL DEFAULT 'pdf',
+      tamano INT NOT NULL DEFAULT 0,
+      subido_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_archivo (archivo),
+      KEY idx_gasto (id_gasto)
+    ) ENGINE=InnoDB`,
+
+    `CREATE TABLE IF NOT EXISTS factura_adjuntos (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      id_factura INT NOT NULL,
+      nombre_original VARCHAR(255) NOT NULL,
+      archivo VARCHAR(120) NOT NULL,
+      tamano INT NOT NULL DEFAULT 0,
+      uuid_cfdi VARCHAR(40) NOT NULL DEFAULT '',
+      subido_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_archivo (archivo),
+      KEY idx_factura (id_factura)
+    ) ENGINE=InnoDB`,
+
     `CREATE TABLE IF NOT EXISTS pagos (
       id INT AUTO_INCREMENT PRIMARY KEY,
       fecha DATE NOT NULL,
@@ -248,6 +311,12 @@ async function main() {
     ('Litro', 'LT'), ('Metro', 'MT'), ('Kilogramo', 'KG'), ('Servicio', 'SRV')`);
 
   await seed('vendedores', `INSERT INTO vendedores (nombre) VALUES ('Mostrador')`);
+
+  await seed('categorias_gasto', `INSERT INTO categorias_gasto (nombre) VALUES
+    ('Compra de Refacciones'), ('Combustible'), ('Mantenimiento de Vehículos'),
+    ('Herramienta y Equipo'), ('Renta'), ('Servicios (luz, agua, internet)'),
+    ('Nómina y Honorarios'), ('Impuestos y Derechos'), ('Fletes y Paquetería'),
+    ('Papelería y Oficina'), ('Publicidad'), ('Seguros'), ('Viáticos'), ('Otros Gastos')`);
 
   await conn.end();
   console.log('✔ Base de datos lista.');

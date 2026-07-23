@@ -1,16 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   LayoutDashboard, FileText, DollarSign, AlertTriangle, Clock, Wallet, ArrowRight,
 } from 'lucide-react';
 import { money, fecha, badgeEstadoCobro } from '@/lib/format';
+import { filtroPeriodo, rangoDeFiltro, sufijoPeriodo, type FiltroPeriodo } from '@/lib/periodos';
 import CountUp from '@/components/CountUp';
+import PeriodoFilter from '@/components/PeriodoFilter';
+import BotonPdf from '@/components/BotonPdf';
 
 interface Stats {
-  facturadoMes: { n: number; monto: number };
-  cobradoMes: { n: number; monto: number };
+  facturadoPeriodo: { n: number; monto: number };
+  cobradoPeriodo: { n: number; monto: number };
   saldoPendiente: number;
   vencidas: { n: number; monto: number };
   porVencer: { n: number; monto: number };
@@ -42,18 +45,32 @@ function TableSkeleton({ rows = 4 }: { rows?: number }) {
 }
 
 export default function InicioPage() {
+  const [periodo, setPeriodo] = useState<FiltroPeriodo>(() => filtroPeriodo('mes'));
   const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState('');
+  const contenido = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch('/api/dashboard/stats')
+    const controlador = new AbortController();
+    const { desde, hasta } = rangoDeFiltro(periodo);
+    const params = new URLSearchParams();
+    if (desde) params.set('desde', desde);
+    if (hasta) params.set('hasta', hasta);
+
+    setError('');
+
+    fetch(`/api/dashboard/stats?${params}`, { signal: controlador.signal })
       .then(r => r.json())
       .then(d => (d.message ? setError(d.message) : setStats(d)))
-      .catch(() => setError('Error de conexión'));
-  }, []);
+      .catch(e => { if (e.name !== 'AbortError') setError('Error de conexión'); });
+
+    return () => controlador.abort();
+  }, [periodo]);
+
+  const sufijo = sufijoPeriodo(periodo.key);
 
   return (
-    <div className="pageContainer">
+    <div className="pageContainer" ref={contenido}>
       <header className="pageHead">
         <div className="titleGroup">
           <div className="titleIcon"><LayoutDashboard size={24} /></div>
@@ -62,10 +79,20 @@ export default function InicioPage() {
             <p className="pageSubtitle">Resumen de facturación y cobranza</p>
           </div>
         </div>
-        <Link href="/facturas" className="btnPrimary">
-          <FileText size={18} /> Nueva Factura
-        </Link>
+        <div className="headActions">
+          <BotonPdf
+            objetivo={contenido}
+            archivo="inicio"
+            titulo={`Resumen de facturación y cobranza · ${sufijo}`}
+            disabled={!stats}
+          />
+          <Link href="/facturas" className="btnPrimary" data-export-ocultar>
+            <FileText size={18} /> Nueva Factura
+          </Link>
+        </div>
       </header>
+
+      <PeriodoFilter value={periodo} onChange={setPeriodo} />
 
       {error && <div className="glass card" style={{ color: 'var(--danger)' }}>{error}</div>}
 
@@ -89,9 +116,9 @@ export default function InicioPage() {
                 <FileText size={22} />
               </div>
               <div>
-                <div className="kpiLabel">Facturado del mes</div>
-                <div className="kpiValue"><CountUp value={stats.facturadoMes.monto} format={money} /></div>
-                <div className="kpiSub">{stats.facturadoMes.n} facturas vigentes</div>
+                <div className="kpiLabel">Facturado {sufijo}</div>
+                <div className="kpiValue"><CountUp value={stats.facturadoPeriodo.monto} format={money} /></div>
+                <div className="kpiSub">{stats.facturadoPeriodo.n} facturas vigentes</div>
               </div>
             </div>
 
@@ -100,9 +127,9 @@ export default function InicioPage() {
                 <DollarSign size={22} />
               </div>
               <div>
-                <div className="kpiLabel">Cobrado del mes</div>
-                <div className="kpiValue"><CountUp value={stats.cobradoMes.monto} format={money} /></div>
-                <div className="kpiSub">{stats.cobradoMes.n} pagos recibidos</div>
+                <div className="kpiLabel">Cobrado {sufijo}</div>
+                <div className="kpiValue"><CountUp value={stats.cobradoPeriodo.monto} format={money} /></div>
+                <div className="kpiSub">{stats.cobradoPeriodo.n} pagos recibidos</div>
               </div>
             </div>
 
@@ -113,7 +140,7 @@ export default function InicioPage() {
               <div>
                 <div className="kpiLabel">Saldo por cobrar</div>
                 <div className="kpiValue"><CountUp value={stats.saldoPendiente} format={money} /></div>
-                <div className="kpiSub">cartera total vigente</div>
+                <div className="kpiSub">cartera {sufijo}</div>
               </div>
             </div>
 
@@ -155,7 +182,7 @@ export default function InicioPage() {
                   </thead>
                   <tbody>
                     {stats.urgentes.length === 0 ? (
-                      <tr><td colSpan={6} className="emptyCell">Sin facturas pendientes de cobro 🎉</td></tr>
+                      <tr><td colSpan={6} className="emptyCell">Sin facturas pendientes de cobro en este periodo 🎉</td></tr>
                     ) : stats.urgentes.map(f => (
                       <tr key={f.id}>
                         <td><Link href={`/facturas/${f.id}`} className="tdBold" style={{ color: 'var(--info)' }}>{f.folio}</Link></td>
@@ -185,7 +212,7 @@ export default function InicioPage() {
                   </thead>
                   <tbody>
                     {stats.ultimas.length === 0 ? (
-                      <tr><td colSpan={5} className="emptyCell">Aún no hay facturas</td></tr>
+                      <tr><td colSpan={5} className="emptyCell">No hay facturas en este periodo</td></tr>
                     ) : stats.ultimas.map(f => (
                       <tr key={f.id}>
                         <td><Link href={`/facturas/${f.id}`} className="tdBold" style={{ color: 'var(--info)' }}>{f.folio}</Link></td>

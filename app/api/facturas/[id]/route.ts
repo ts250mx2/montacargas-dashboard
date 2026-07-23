@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { estadoCobro } from '@/lib/cobranza';
 import { diasAlerta } from '@/lib/facturas';
+import { borrarArchivo } from '@/lib/adjuntos';
 
 export async function GET(
   _request: Request,
@@ -65,10 +66,15 @@ export async function GET(
     const [vendedores] = await pool.query('SELECT id, nombre FROM vendedores WHERE activo = 1 ORDER BY nombre');
     const [formasPago] = await pool.query('SELECT id, nombre FROM formas_pago WHERE activo = 1 ORDER BY nombre');
 
+    const [adjuntos] = await pool.query(
+      `SELECT id, nombre_original, tamano, uuid_cfdi, subido_en
+       FROM factura_adjuntos WHERE id_factura = ? ORDER BY id DESC LIMIT 1`, [id]);
+
     return NextResponse.json({
       clientes,
       vendedores,
       formasPago,
+      adjunto: (adjuntos as any[])[0] ?? null,
       factura: {
         ...factura,
         cobrado: Math.round(cobrado * 100) / 100,
@@ -158,6 +164,11 @@ export async function DELETE(
         { status: 400 }
       );
     }
+    // Los PDF adjuntos se van con la factura para no dejar archivos huérfanos
+    const [adjuntos] = await pool.query('SELECT archivo FROM factura_adjuntos WHERE id_factura = ?', [id]);
+    for (const adjunto of adjuntos as any[]) await borrarArchivo('facturas', adjunto.archivo);
+    await pool.query('DELETE FROM factura_adjuntos WHERE id_factura = ?', [id]);
+
     await pool.query('DELETE FROM factura_detalle WHERE id_factura = ?', [id]);
     await pool.query('DELETE FROM facturas WHERE id = ?', [id]);
     return NextResponse.json({ success: true });
