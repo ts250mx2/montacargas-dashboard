@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FileText, Search, Plus, X, Check, Eye } from 'lucide-react';
+import { FileText, Search, Plus, X, Check, Edit2, Trash2, AlertTriangle } from 'lucide-react';
 import { money, fecha, badgeEstadoCobro } from '@/lib/format';
 import { describirPeriodo, enRango, filtroPeriodo, rangoDeFiltro, type FiltroPeriodo } from '@/lib/periodos';
 import PeriodoFilter from '@/components/PeriodoFilter';
@@ -42,6 +42,8 @@ export default function FacturasPage() {
   const [saving, setSaving] = useState(false);
   const [pdfAdjunto, setPdfAdjunto] = useState<File | null>(null);
   const [lecturaPdf, setLecturaPdf] = useState<LecturaPdf | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Factura | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [formData, setFormData] = useState({
     id_cliente: 0, id_vendedor: 0, id_forma_pago: 0, folio_interno: '',
     fecha: new Date().toISOString().slice(0, 10),
@@ -58,6 +60,17 @@ export default function FacturasPage() {
     setVendedores(data.vendedores || []);
     setFormasPago(data.formasPago || []);
     setLoading(false);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDelete) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/facturas/${confirmDelete.id}`, { method: 'DELETE' });
+      if (res.ok) { setConfirmDelete(null); fetchData(); }
+      else { const err = await res.json(); alert(err.message || 'Error al eliminar la factura'); }
+    } catch { alert('Error de conexión'); }
+    finally { setDeleting(false); }
   };
 
   /** Rellena el formulario con lo que se pudo leer del PDF, sin pisar lo ya capturado. */
@@ -248,9 +261,15 @@ export default function FacturasPage() {
                 <td className="tdNum tdBold">{money(f.saldo)}</td>
                 <td><span className={badgeEstadoCobro(f.estado_cobro)}>{f.estado_cobro}</span></td>
                 <td>
-                  <Link href={`/facturas/${f.id}`} className="iconBtn" title="Ver factura">
-                    <Eye size={15} />
-                  </Link>
+                  <div className="rowActions">
+                    <Link href={`/facturas/${f.id}`} className="iconBtn" title="Editar factura">
+                      <Edit2 size={15} />
+                    </Link>
+                    <button className="iconBtn iconBtnDanger" title="Eliminar factura"
+                      onClick={() => setConfirmDelete(f)}>
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -339,6 +358,31 @@ export default function FacturasPage() {
                 {saving ? 'Creando...' : 'Crear y Capturar Productos'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div className="overlay">
+          <div className="glass confirmModal animate-scale">
+            <div className="confirmIcon"><AlertTriangle size={40} /></div>
+            <h3>¿Eliminar Factura?</h3>
+            <p className="confirmMsg">
+              Se eliminará la factura <strong>{confirmDelete.folio}</strong> ({confirmDelete.cliente})
+              con todas sus partidas. Esta acción no se puede deshacer.
+              {Number(confirmDelete.cobrado) > 0 && (
+                <> Si tiene pagos registrados, cancélala en lugar de eliminarla.</>
+              )}
+            </p>
+            <div className="confirmBtns">
+              <button className="btnGhost" onClick={() => setConfirmDelete(null)} disabled={deleting}>
+                Cancelar
+              </button>
+              <button className="btnDanger" onClick={handleConfirmDelete} disabled={deleting}>
+                <Trash2 size={16} />
+                {deleting ? 'Eliminando...' : 'Sí, eliminar'}
+              </button>
+            </div>
           </div>
         </div>
       )}
